@@ -1,0 +1,16 @@
+# Data and databases (large, and downloaded data should never be committed)
+data/raw/
+data/sample/
+data/*.db
+data/*.db-journal
+
+# Secrets
+.env
+*.key
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+.DS_Store

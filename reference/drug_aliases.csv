@@ -1,0 +1,28 @@
+# Drug aliases: brand names, misspellings and odd strings mapped to clean ingredient(s).
+#   alias        exact text after cleanup, uppercase
+#   ingredients  one or more ingredients, joined with +
+#   status       observed = seen in the FAERS quarter you loaded and the mapping is obvious
+#                verify   = written from general knowledge and NOT checked against a reference.
+#                           Check each against RxNorm or the drug label before relying on it.
+# Lines starting with # are ignored. Add rows as you find more mess (compare_names.py --suspicious helps).
+alias,ingredients,status
+AMLODIPINE B,AMLODIPINE,observed
+AMLODIPINE OD,AMLODIPINE,observed
+AMLODIPINE OD TOWA,AMLODIPINE,observed
+AMLODIPINE BESYLATE-BENAZEPRIL,AMLODIPINE+BENAZEPRIL,observed
+AMLODIPINE BESY-BENAZEPRIL,AMLODIPINE+BENAZEPRIL,observed
+AMLODIPINE-BENAZ,AMLODIPINE+BENAZEPRIL,observed
+AMLODIPINA,AMLODIPINE,observed
+VALSARTAN CANON,VALSARTAN,observed
+TRIAMCINOLON,TRIAMCINOLONE,observed
+TAZOCIN,PIPERACILLIN+TAZOBACTAM,verify
+NOVALGIN,METAMIZOLE,verify
+SALOFALK,MESALAZINE,verify
+REACTINE,CETIRIZINE,verify
+AKYNZEO,NETUPITANT+PALONOSETRON,verify
+NAC,ACETYLCYSTEINE,verify
+COMIRNATY,COVID-19 VACCINE,verify
+VITAMIN D3,CHOLECALCIFEROL,verify
+K2,MENAQUINONE,verify
+VITAMIN K2,MENAQUINONE,verify
+D3,CHOLECALCIFEROL,verify
