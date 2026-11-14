@@ -1,15 +1,20 @@
-# FAERS Natural-Language Search
+# AskFAERS
+
+Natural-language search over FDA adverse event reports, built with the Claude API.
 
 A web app where you ask a question about FDA adverse event reports in plain English
 ("what are the most commonly reported reactions for drug X in patients over 65?") and get
 back a table, the exact SQL that produced it, and an explanation with the caveats built in.
 
-This repo is at **Week 1**: load one quarter of FAERS data into SQLite, understand the schema,
-and write queries by hand. The Claude-powered part comes later (see the plan below).
+**Status:** the data pipeline is done (Weeks 1-2): load a FAERS quarter into SQLite, remove duplicate
+and deleted cases, and clean drug names into single ingredients. The Claude-powered part
+(question to SQL, guardrails, evaluation, interface) comes next; see the plan below.
 
 > **Important:** FAERS reports do not prove that a drug caused an event, counts of reports are
 > not risk rates, and widely used drugs show up often simply because many people take them.
 > This is an educational project, not a medical tool.
+>
+> This is an independent project. It is not affiliated with or endorsed by the FDA or Anthropic.
 
 ## Layout
 
