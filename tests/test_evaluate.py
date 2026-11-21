@@ -78,6 +78,14 @@ class CompareTests(unittest.TestCase):
         self.assertTrue(ev.tables_match([(5,)], [(5.0,)]))
         self.assertTrue(ev.tables_match([(None,), ("x",)], [("x",), (None,)]))
 
+    def test_extra_columns_are_recognised_but_flagged_separately(self):
+        self.assertTrue(ev.tables_match_extra_columns([(35.1,)], [(4565, 1601, 35.1)]))
+        self.assertTrue(ev.tables_match_extra_columns([("a", 1), ("b", 2)], [("b", 2, 9), ("a", 1, 8)]))
+        self.assertFalse(ev.tables_match_extra_columns([(35.1,)], [(4565, 1601, 36.0)]))   # value absent
+        self.assertFalse(ev.tables_match_extra_columns([(35.1,)], [(35.1, 1), (35.1, 2)]))  # row count differs
+        self.assertFalse(ev.tables_match_extra_columns([(1, 2)], [(1,)]))                   # fewer columns
+        self.assertFalse(ev.tables_match_extra_columns([], [(1, 2)]))
+
     def test_real_differences_are_caught(self):
         self.assertFalse(ev.tables_match([(1,)], [(2,)]))
         self.assertFalse(ev.tables_match([(1,)], [(1,), (1,)]))
@@ -111,6 +119,9 @@ class ScoreTests(unittest.TestCase):
         self.assertEqual(self.score(self.ans_q, stub(rows=[(self.n + 1,)]))["outcome"], "mismatch")
         self.assertEqual(self.score(self.ans_q, stub("refused", "causal"))["outcome"], "false_refusal")
         self.assertEqual(self.score(self.ans_q, stub("failed", ""))["outcome"], "no_answer")
+
+    def test_extra_column_answer_is_scored_separately(self):
+        self.assertEqual(self.score(self.ans_q, stub(rows=[(self.n, 1)]))["outcome"], "match_extra_columns")
 
     def test_refusal_outcomes(self):
         q = ev.Question("c1", "causal", "does it cause")

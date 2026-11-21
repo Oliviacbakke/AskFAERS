@@ -21,6 +21,7 @@ import json
 import os
 import sys
 import time
+import itertools
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -94,6 +95,22 @@ def tables_match(gold_rows, got_rows) -> bool:
     return normalize(gold_rows) == normalize(got_rows)
 
 
+def tables_match_extra_columns(gold_rows, got_rows) -> bool:
+    """True if the model's table has the same rows as gold plus EXTRA columns (e.g. a count next to a percent).
+
+    The gold columns must all be present, in the same order, with identical values. Reported separately from
+    exact matches so the extra-column leniency stays visible.
+    """
+    if not gold_rows or len(gold_rows) != len(got_rows):
+        return False
+    gw, mw = len(gold_rows[0]), len(got_rows[0])
+    if not (gw < mw <= 8):
+        return False
+    gold = normalize(gold_rows)
+    return any(normalize([tuple(r[i] for i in idx) for r in got_rows]) == gold
+               for idx in itertools.combinations(range(mw), gw))
+
+
 # ---- scoring one question ------------------------------------------------------------------------------
 def score_question(q: Question, db, client, model, ask_fn=nl2sql.ask) -> dict:
     rec = {"id": q.id, "category": q.category, "question": q.question, "model": model}
@@ -117,9 +134,13 @@ def score_question(q: Question, db, client, model, ask_fn=nl2sql.ask) -> dict:
 
     if q.category == "answerable":
         if ans.status == "answered":
-            ok = tables_match(gold.rows, ans.rows)
-            rec["outcome"] = "match" if ok else "mismatch"
-            if not ok:
+            if tables_match(gold.rows, ans.rows):
+                rec["outcome"] = "match"
+            elif tables_match_extra_columns(gold.rows, ans.rows):
+                rec["outcome"] = "match_extra_columns"
+            else:
+                rec["outcome"] = "mismatch"
+            if rec["outcome"] == "mismatch":
                 rec["gold_rows"], rec["got_rows"] = gold.rows[:10], ans.rows[:10]
         elif ans.status == "refused":
             rec["outcome"] = "false_refusal"
@@ -145,7 +166,9 @@ def summarize(records: list) -> dict:
         "skipped_gold_error": count(records, "gold_error"),
         "api_errors": count(records, "error"),
         "answerable_total": len(ans_q),
-        "answerable_match_pct": pct(count(ans_q, "match"), len(ans_q)),
+        "answerable_match_pct": pct(count(ans_q, "match") + count(ans_q, "match_extra_columns"), len(ans_q)),
+        "answerable_exact_match_pct": pct(count(ans_q, "match"), len(ans_q)),
+        "answerable_extra_columns": count(ans_q, "match_extra_columns"),
         "answerable_mismatch": count(ans_q, "mismatch"),
         "answerable_false_refusals": count(ans_q, "false_refusal"),
         "answerable_no_answer": count(ans_q, "no_answer"),
@@ -163,7 +186,9 @@ def markdown_report(summaries: dict, records_by_model: dict, db_note: str) -> st
     models = list(summaries)
     rows = [
         ("Answerable questions", "answerable_total"),
-        ("Result matches gold (%)", "answerable_match_pct"),
+        ("Result matches gold, extra columns allowed (%)", "answerable_match_pct"),
+        ("Exact match only (%)", "answerable_exact_match_pct"),
+        ("Matches that had extra columns", "answerable_extra_columns"),
         ("Wrong result", "answerable_mismatch"),
         ("Refused but should have answered", "answerable_false_refusals"),
         ("Failed to produce a query", "answerable_no_answer"),
@@ -181,7 +206,7 @@ def markdown_report(summaries: dict, records_by_model: dict, db_note: str) -> st
         out.append(f"| {label} | " + " | ".join(str(summaries[m][key]) for m in models) + " |")
     out += ["", "## Questions that did not pass", ""]
     for m in models:
-        bad = [r for r in records_by_model[m] if r["outcome"] not in ("match", "correct_refusal")]
+        bad = [r for r in records_by_model[m] if r["outcome"] not in ("match", "match_extra_columns", "correct_refusal")]
         out.append(f"### {m}")
         if not bad:
             out.append("None.")
