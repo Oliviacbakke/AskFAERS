@@ -86,6 +86,12 @@ RULES FOR THE SQL
 6. Use only the tables and views listed below. Write exactly one SELECT (a WITH clause is allowed).
    Add ORDER BY and a LIMIT of at most 50. Give result columns readable aliases.
 7. Never state or imply that a drug caused an event, and never give medical advice, in any field you write.
+8. Country: occr_country is where the event occurred and reporter_country is where the reporter is located. For
+   "which country" questions use occr_country unless the user asks about the reporter, and say so in the interpretation.
+9. A percentage, chance, risk or rate "among users", "of patients who take", or "of people on" a drug is
+   unsupported_data: FAERS has no count of how many people take a drug. Do not answer it with a share of reports.
+   A share of REPORTS ("what percent of semaglutide reports mention nausea") IS answerable; compute it as a
+   percentage of distinct reports and say in the interpretation that it is a share of reports, not a rate.
 
 HOW TO ANSWER
 - Call find_names as many times as you need, then finish by calling submit_query exactly once.
@@ -257,11 +263,25 @@ def ask(question: str, db_path, client, model: str = DEFAULT_MODEL,
     system = build_system_prompt(db_path)
     messages = [{"role": "user", "content": f"<question>\n{question}\n</question>"}]
 
+    tool_choice = {"type": "any", "disable_parallel_tool_use": True}
+    nudged = False
     for _ in range(max_turns):
-        response = client.messages.create(
-            model=model, max_tokens=MAX_TOKENS, system=system, tools=TOOLS, messages=messages,
-            tool_choice={"type": "any", "disable_parallel_tool_use": True},
-        )
+        try:
+            response = client.messages.create(
+                model=model, max_tokens=MAX_TOKENS, system=system, tools=TOOLS, messages=messages,
+                tool_choice=tool_choice,
+            )
+        except Exception as e:
+            # Some models (e.g. Sonnet 5.5) do not allow forcing a tool. Fall back to "auto" and retry once.
+            if tool_choice["type"] == "any" and getattr(e, "status_code", None) == 400 and "tool_choice" in str(e):
+                tool_choice = {"type": "auto", "disable_parallel_tool_use": True}
+                ans.trace.append("model does not allow forced tool use; using auto")
+                response = client.messages.create(
+                    model=model, max_tokens=MAX_TOKENS, system=system, tools=TOOLS, messages=messages,
+                    tool_choice=tool_choice,
+                )
+            else:
+                raise
         usage = getattr(response, "usage", None)
         if usage:
             ans.input_tokens += getattr(usage, "input_tokens", 0) or 0
@@ -271,6 +291,11 @@ def ask(question: str, db_path, client, model: str = DEFAULT_MODEL,
         messages.append({"role": "assistant", "content": [_block_to_dict(b) for b in blocks]})
         tool_uses = [b for b in blocks if b.type == "tool_use"]
         if not tool_uses:
+            if tool_choice["type"] == "auto" and not nudged:
+                nudged = True  # without forced tool use the model may answer in plain text; ask once for the tool
+                messages.append({"role": "user", "content": "Please respond by calling the submit_query tool "
+                                                              "(or find_names first). Do not answer in plain text."})
+                continue
             ans.message = "The model did not return a query. Please try rephrasing the question."
             return ans
 

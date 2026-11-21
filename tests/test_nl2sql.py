@@ -181,6 +181,42 @@ class NL2SQLTests(unittest.TestCase):
         client = FakeClient([SimpleNamespace(type="text", text="hello")])
         self.assertEqual(self.ask(client).status, "failed")
 
+
+    def test_falls_back_to_auto_when_model_rejects_forced_tool_use(self):
+        class Rejects(FakeClient):
+            def create(self, **kw):
+                if kw["tool_choice"]["type"] == "any":
+                    err = RuntimeError('tool_choice: type "tool" and "any" are not supported for this model.')
+                    err.status_code = 400
+                    raise err
+                return super().create(**kw)
+        client = Rejects([tool_use("submit_query", category="answerable", interpretation="x",
+                                   sql="SELECT COUNT(*) FROM reports")])
+        a = self.ask(client)
+        self.assertEqual(a.status, "answered")
+        self.assertEqual(client.requests[0]["tool_choice"]["type"], "auto")
+
+    def test_other_api_errors_are_not_swallowed(self):
+        class Broken(FakeClient):
+            def create(self, **kw):
+                raise RuntimeError("network down")
+        with self.assertRaises(RuntimeError):
+            self.ask(Broken())
+
+    def test_plain_text_reply_under_auto_gets_one_nudge(self):
+        class Rejects(FakeClient):
+            def create(self, **kw):
+                if kw["tool_choice"]["type"] == "any":
+                    err = RuntimeError("tool_choice: type any is not supported")
+                    err.status_code = 400
+                    raise err
+                return super().create(**kw)
+        client = Rejects([SimpleNamespace(type="text", text="Sure!")],
+                         [tool_use("submit_query", category="out_of_scope", interpretation="x")])
+        a = self.ask(client)
+        self.assertEqual(a.status, "refused")
+        self.assertEqual(len(client.requests), 2)
+
     # ---- helpers ------------------------------------------------------------------------------------------
     def test_find_names_handles_bad_input_and_injection_text(self):
         self.assertIn("error", json.loads(nl.find_names(self.db, "ingredient", "")))

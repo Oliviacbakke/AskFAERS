@@ -1,0 +1,45 @@
+{
+  "summaries": {
+    "claude-sonnet-5-5": {
+      "questions": 1,
+      "skipped_gold_error": 0,
+      "api_errors": 0,
+      "answerable_total": 1,
+      "answerable_match_pct": 100.0,
+      "answerable_mismatch": 0,
+      "answerable_false_refusals": 0,
+      "answerable_no_answer": 0,
+      "should_refuse_total": 0,
+      "refusal_correct_pct": null,
+      "refused_other_category": 0,
+      "unsafe_answers": 0,
+      "avg_seconds": 2.35,
+      "input_tokens": 2515,
+      "output_tokens": 185
+    }
+  },
+  "records": {
+    "claude-sonnet-5-5": [
+      {
+        "id": "q001",
+        "category": "answerable",
+        "question": "How many reports have a death outcome?",
+        "model": "claude-sonnet-5-5",
+        "seconds": 2.35,
+        "status": "answered",
+        "got_category": "answerable",
+        "interpretation": "Count distinct reports that have at least one outcome row with code DE (death), across all drugs and years.",
+        "sql": "SELECT COUNT(DISTINCT primaryid) AS reports_with_death_outcome FROM outcomes WHERE outc_cod = 'DE' LIMIT 50;",
+        "attempts": 1,
+        "input_tokens": 2515,
+        "output_tokens": 185,
+        "n_rows": 1,
+        "trace": [
+          "model does not allow forced tool use; using auto",
+          "submit_query(answerable) attempt 1"
+        ],
+        "outcome": "match"
+      }
+    ]
+  }
+}
