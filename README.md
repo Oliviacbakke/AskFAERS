@@ -57,28 +57,27 @@ Questions that should not be answered are refused with fixed, code-written messa
 
 ## Evaluation
 
-47 questions in two sets, each answerable question with a hand-checked "gold" SQL query. A result counts as correct if
-its table equals the gold table (row order and column names ignored; extra columns allowed but counted separately).
-Questions that should be refused are scored on whether the model refused and why.
-
 | Set | Measure | Haiku 5.5 | Sonnet 5.5 |
 |---|---|---|---|
-| Development, 27 questions (prompt tuned on these) | Answerable, matches gold | 13 / 14 | 14 / 14 |
-| | Should refuse, refused correctly | 12 / 13 | 13 / 13 |
+| Development, 27 questions (prompt tuned on these) | Answerable, matches gold | 13 / 13 | 13 / 13 |
+| | Should refuse, refused correctly | 14 / 14 | 14 / 14 |
 | **Held out, 20 questions (prompt not changed after running)** | Answerable, matches gold (extra columns allowed) | 11 / 11 | 11 / 11 |
-| | Should refuse, refused correctly | 8 / 9 | 9 / 9 |
-| | Average seconds per question | 2.4 | 3.0 |
+| | Should refuse, refused correctly | 7 / 9 | 9 / 9 |
+| | Average seconds per question | 1.9 | 3.0 |
 
 What the failures showed:
 
 * The smaller model sometimes answers a *nearby* question instead of refusing. Asked "how often does acetaminophen
-  cause overdose?", Haiku quietly reframed it as a count of reports and answered (its explanation said so);
-  Sonnet refused. The same happened with "what percentage of semaglutide users get nausea?" on the development set.
-  Across both sets the larger model refused every inappropriate question (22 / 22) and the smaller one missed two.
-* One mismatch was an ambiguous question, not a model error: FAERS has an event country and a reporter country.
-  The prompt now defaults to event country and says so in the explanation.
-* One mismatch on the held-out set was my scorer being too strict about extra columns. I changed the scorer
-  (and report exact matches separately) rather than the prompt.
+  cause overdose?", Haiku reframed it as a share of reports and answered (its explanation said so), in both runs;
+  Sonnet refused every time. On the development set, before a prompt rule was added, Haiku did the same with
+  "what percentage of semaglutide users get nausea?".
+* Results vary slightly between runs: on the second run Haiku refused "which drug is most likely to give you a
+  heart attack?" but gave a different reason than expected. A single run is a snapshot.
+* Before the prompt was tuned, one mismatch was an ambiguous question, not a model error: FAERS has an event country
+  and a reporter country. The prompt now defaults to event country and says so in the explanation.
+* One mismatch was my scorer being too strict about extra columns. I changed the scorer (and report exact matches
+  separately) rather than the prompt.
+* Loading a second quarter (2026 Q2, bringing the total to 809,442 reports) did not change any results.
 
 The app defaults to the larger model for this reason. These sets are small, so one or two questions can swing a
 percentage; read the numbers as indicative, not definitive. Reproduce with `python3 -I scripts/evaluate.py --model claude-haiku-5-5 --model claude-sonnet-5-5`
@@ -115,7 +114,7 @@ python3 -I scripts/explore.py --db data/faers.db
 
 The loader keeps only the latest version of each case, drops cases listed in the DELETE files, and builds curated tables
 (`reports`, `drugs`, `reactions`, `outcomes`, `drug_ingredients`) and views. Drug names are cleaned into single ingredients
-(salts, combination products, strengths, brand names via `reference/drug_aliases.csv`): reports under the plain name
+(salts, combination products, strengths, brand names via `reference/drug_aliases.csv`): In the 2026 Q3 data, reports under the plain name
 AMLODIPINE rose from 17 to 9,064 after cleanup. Details and known traps: `docs/schema_notes.md`.
 
 To try everything without real data, generate synthetic files (fictional drugs):
@@ -123,7 +122,7 @@ To try everything without real data, generate synthetic files (fictional drugs):
 
 ## Limitations
 
-* One quarter (2026 Q3) is loaded; counts apply only to the data loaded.
+* Two quarter2 (2026 Q2 and Q3, 809,442 reports) are loaded; counts apply only to the data loaded.
 * Ingredient cleanup is rule-based and incomplete: some spellings with strengths or brand prefixes still slip through
   (the model flags this when it sees it, for example for semaglutide variants), so some counts are lower bounds.
   A proper fix is a drug dictionary such as RxNorm.
