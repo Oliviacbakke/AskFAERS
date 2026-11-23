@@ -1,5 +1,7 @@
 # AskFAERS
 
+![tests](https://github.com/Oliviacbakke/AskFAERS/actions/workflows/tests.yml/badge.svg)
+
 Ask plain-English questions about FDA adverse event reports. Claude writes the SQL, a read-only guard checks it,
 and you get a table, the query that produced it, and the caveats that go with the numbers.
 
@@ -13,12 +15,15 @@ and you get a table, the query that produced it, and the caveats that go with th
 
 ## What it does
 
-```
-"What are the most reported reactions for amlodipine in patients over 65?"
-        |
-        v   Claude (tools: find_names, submit_query)  -- looks up exact drug/reaction spellings, writes one SELECT
-        v   sql_guard  -- read-only, approved tables only, time limit, row cap
-        v   answer: table + SQL + how the question was read + built-in caveats
+```mermaid
+flowchart LR
+  Q["Plain-English question"] --> C["Claude<br/>tools: find_names, submit_query"]
+  C --> K{"Answerable?"}
+  K -- "no" --> F["Fixed refusal message<br/>written in code"]
+  K -- "yes: one SELECT" --> G["sql_guard<br/>SELECT only, table allowlist,<br/>read-only, timeout, row cap"]
+  G -- "rejected: error sent back once" --> C
+  G -- "passed" --> D[("SQLite<br/>curated FAERS tables")]
+  D --> A["Answer: table + SQL + how the<br/>question was read + fixed caveats"]
 ```
 
 Example (real output, FAERS 2026 Q3, 421,401 reports after de-duplication):
