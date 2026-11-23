@@ -1,6 +1,5 @@
 tests.yml
 name: tests
-
 on:
   push:
     branches: [main]
